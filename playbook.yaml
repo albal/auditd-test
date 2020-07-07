@@ -1,0 +1,65 @@
+---
+- hosts: localhost
+  gather_facts: on
+  vars:
+    vm_name: "Ubuntu-18-test-auditd"
+    vm_template: "Ubuntu-18-test"
+  tasks:
+  - name: Including secrets
+    include_vars:
+      file: vault.yaml
+      name: secret
+    
+  - name: Destroy VM
+    vmware_guest:
+      name: "{{ vm_name }}"
+      datacenter: "{{ secret.datacenter }}"
+      hostname: "{{ secret.vcenter }}"
+      username: "{{ secret.vcenter_user }}"
+      password: "{{ secret.vcenter_pass }}"
+      validate_certs: no
+      folder: "{{ secret.folder }}"
+      force: yes
+      state: absent
+    
+  - name: Create VM
+    vmware_guest:
+      datacenter: "{{ secret.datacenter }}"
+      hostname: "{{ secret.vcenter }}"
+      username: "{{ secret.vcenter_user }}"
+      password: "{{ secret.vcenter_pass }}"
+      folder: "{{ secret.folder }}"
+      validate_certs: no
+      name: "{{ vm_name }}"
+      template: "{{ vm_template }}"
+      state: poweredon
+      hardware:
+        num_cpus: 2
+        memory_mb: 8192
+      disk:
+        - size_gb: 40
+          datastore: "SSD_RAID5"
+      wait_for_ip_address: yes
+    register: deploy_vm
+
+  - name: Dump register
+    debug: msg="New VM IP is {{ deploy_vm.instance.ipv4 }}"
+
+  - name: Add new VM IP as host
+    add_host:
+      groups: "ubuntu_vm"
+      name: "{{ deploy_vm.instance.ipv4 }}"
+
+- hosts: ubuntu-vm
+  gather_facts: true
+
+  tasks:
+  - name: Upgrade all packages to the latest version
+    apt:
+      name: "*"
+      state: latest
+
+  - name: Install auditd
+    apt:
+      name: auditd
+      state: present
