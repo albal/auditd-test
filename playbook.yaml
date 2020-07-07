@@ -50,7 +50,7 @@
       groups: "ubuntu_vm"
       name: "{{ deploy_vm.instance.ipv4 }}"
 
-- hosts: ubuntu-vm
+- hosts: ubuntu_vm
   gather_facts: true
 
   tasks:
